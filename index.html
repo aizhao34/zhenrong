@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>阵容速查</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #1c1c22; color: #eee; min-height: 100vh; padding-bottom: 80px;
+  }
+  header { text-align: center; padding: 14px 0 6px; }
+  header h1 { font-size: 20px; color: #e8b04b; letter-spacing: 3px; }
+  header p { font-size: 11px; color: #777; margin-top: 4px; }
+
+  nav { display: flex; position: sticky; top: 0; background: #1c1c22; z-index: 10; border-bottom: 1px solid #333; }
+  nav button {
+    flex: 1; background: none; border: none; color: #888; font-size: 15px;
+    padding: 12px 0; cursor: pointer;
+  }
+  nav button.on { color: #e8b04b; font-weight: bold; border-bottom: 2px solid #e8b04b; }
+  .page { display: none; padding: 14px; }
+  .page.on { display: block; }
+
+  .seq-row { display: flex; gap: 10px; justify-content: center; margin: 8px 0 4px; }
+  .seq-slot {
+    width: 84px; height: 84px; border-radius: 14px; background: #26262e;
+    border: 2px dashed #444; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-size: 15px; color: #999;
+  }
+  .seq-slot.filled { border: 2px solid #e8b04b; color: #ffe9c4; font-size: 24px; font-weight: bold; }
+  .troop-row { display: flex; gap: 10px; justify-content: center; margin: 14px 0; }
+  .troop-btn {
+    width: 92px; height: 58px; border-radius: 12px; border: 1px solid #555;
+    background: #3a3a46; color: #eee; font-size: 19px; font-weight: bold; cursor: pointer;
+  }
+  .troop-btn:active { background: #8c2f24; }
+  .ops { display: flex; gap: 10px; justify-content: center; margin-bottom: 6px; }
+  .ops button { background: #26262e; border: 1px solid #444; color: #aaa; border-radius: 8px; padding: 8px 16px; font-size: 13px; }
+  .toggle-line { text-align: center; font-size: 12px; color: #888; margin: 8px 0; }
+  .toggle-line label { cursor: pointer; }
+
+  .card {
+    background: #26262e; border-radius: 12px; padding: 13px; margin-bottom: 11px;
+    border-left: 4px solid #8c2f24; position: relative;
+  }
+  .card .name { font-size: 17px; font-weight: bold; color: #ffe9c4; }
+  .card .seq { float: right; font-size: 13px; color: #e8b04b; font-weight: bold; }
+  .card .warn { font-size: 10px; color: #d97777; vertical-align: middle; }
+  .card .gens { font-size: 12px; color: #bbb; margin: 6px 0; }
+  .card .counters { font-size: 13px; color: #7fbe8a; line-height: 1.6; }
+  .card .counterby { font-size: 13px; color: #e08a8a; line-height: 1.6; margin-top: 2px; }
+  .card .note { font-size: 12px; color: #999; line-height: 1.5; margin-top: 4px; }
+  .card .draw-w { font-size: 13px; color: #9fd3a8; line-height: 1.6; margin-top: 2px; }
+  .card .draw-e { font-size: 13px; color: #a9a9b3; line-height: 1.6; margin-top: 2px; }
+  .card .draw-l { font-size: 13px; color: #e0a06a; line-height: 1.6; margin-top: 2px; }
+  .card .btns { margin-top: 10px; display: flex; gap: 8px; }
+  .card .btns span {
+    font-size: 11px; border: 1px solid #555; border-radius: 6px;
+    padding: 4px 12px; color: #aaa; cursor: pointer;
+  }
+  .no-match { text-align: center; color: #777; font-size: 14px; padding: 26px 0; }
+  .no-match small { font-size: 11px; color: #666; }
+
+  .search { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #444;
+    background: #26262e; color: #eee; font-size: 15px; outline: none; margin-bottom: 12px; }
+  .danger-card { border-left: 4px solid #e83c3c; background: #33232a; }
+  .danger-badge { font-size: 10px; color: #fff; background: #e83c3c; border-radius: 4px; padding: 2px 6px; margin-left: 6px; }
+  .fab {
+    position: fixed; right: 18px; bottom: 90px; width: 56px; height: 56px; border-radius: 50%;
+    background: #e8b04b; color: #222; border: none; font-size: 28px; font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,.5); z-index: 20; cursor: pointer;
+  }
+  .rec-date { font-size: 10px; color: #777; }
+
+  .mask { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 30; display: none; }
+  .mask.on { display: block; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; background: #26262e; z-index: 31;
+    border-radius: 16px 16px 0 0; padding: 18px 16px 30px; display: none;
+    max-height: 92vh; overflow-y: auto;
+  }
+  .sheet.on { display: block; }
+  .sheet h3 { color: #e8b04b; font-size: 16px; margin-bottom: 12px; }
+  .sheet input[type=text] {
+    width: 100%; padding: 11px 13px; border-radius: 8px; border: 1px solid #555;
+    background: #1c1c22; color: #eee; font-size: 15px; margin-bottom: 10px; outline: none;
+  }
+  .sheet textarea {
+    width: 100%; height: 90px; padding: 11px 13px; border-radius: 8px;
+    border: 1px solid #555; background: #1c1c22; color: #eee; font-size: 13px;
+    margin-bottom: 10px; outline: none; resize: vertical; font-family: inherit;
+  }
+  .sheet .lbl { font-size: 12px; color: #999; margin-bottom: 6px; }
+  .sheet .seq-mini { display: flex; gap: 8px; margin-bottom: 10px; }
+  .sheet .seq-mini button {
+    flex: 1; height: 44px; border-radius: 8px; border: 1px solid #555;
+    background: #3a3a46; color: #eee; font-size: 16px; font-weight: bold;
+  }
+  .sheet .seq-view { text-align: center; color: #e8b04b; font-weight: bold; margin-bottom: 8px; font-size: 15px; }
+  .sheet .hit-line { font-size: 12px; color: #8fbf8f; margin-bottom: 8px; }
+  .sheet select {
+    padding: 11px; border-radius: 8px; border: 1px solid #555; background: #1c1c22;
+    color: #eee; font-size: 14px; margin-bottom: 10px; width: 100%;
+  }
+  .btn-main {
+    width: 100%; padding: 13px; border: none; border-radius: 10px; background: #e8b04b;
+    color: #222; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 4px;
+  }
+  .btn-ghost {
+    width: 100%; padding: 11px; border: 1px solid #555; border-radius: 10px;
+    background: none; color: #aaa; font-size: 14px; margin-top: 8px;
+  }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 4px 0 10px; }
+
+  .tip { font-size: 12px; color: #888; line-height: 1.7; margin-bottom: 12px; }
+  .sec-title { font-size: 14px; color: #e8b04b; margin: 16px 0 8px; font-weight: bold; }
+  #toast {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: rgba(232,176,75,.96); color: #222; padding: 11px 22px; border-radius: 10px;
+    font-size: 14px; font-weight: bold; z-index: 99; display: none; max-width: 80%;
+    text-align: center; line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>阵 容 速 查</h1>
+  <p>兵种点三下 · 记仇搜名字 · 数据只存你手机</p>
+</header>
+
+<nav>
+  <button class="on" data-page="quick">⚡ 快查</button>
+  <button data-page="recs">📖 记仇本</button>
+  <button data-page="teams">🛠 队伍库</button>
+  <button data-page="cfg">⚙️ 设置</button>
+</nav>
+
+<div class="page on" id="page-quick">
+  <div class="seq-row">
+    <div class="seq-slot" id="slot0">第1个</div>
+    <div class="seq-slot" id="slot1">第2个</div>
+    <div class="seq-slot" id="slot2">第3个</div>
+  </div>
+  <div class="troop-row">
+    <button class="troop-btn" onclick="pickT('骑')">骑</button>
+    <button class="troop-btn" onclick="pickT('步')">步</button>
+    <button class="troop-btn" onclick="pickT('弓')">弓</button>
+  </div>
+  <div class="ops">
+    <button onclick="undoT()">↩ 撤销</button>
+    <button onclick="clearT()">✖ 清空</button>
+  </div>
+  <div class="toggle-line">
+    <label><input type="checkbox" id="fuzzy" onchange="renderSeqResult()"> 也显示兵种相同但顺序不同的队伍</label>
+  </div>
+  <div id="seqResults"></div>
+</div>
+
+<div class="page" id="page-recs">
+  <input class="search" id="recSearch" type="search" placeholder="🔍 输对面名字，边打字边出结果">
+  <div id="recList"></div>
+</div>
+
+<button class="fab" onclick="openRecSheet()">＋</button>
+
+<div class="page" id="page-teams">
+  <div class="tip">
+    只放知名队伍。带 ⚠️ 的是预置数据，可能不准。点「编辑」可改，点「删除」移除。
+    分隔符支持 <b>| ｜ ， , 、 。</b>，但只切前 3 刀，剩下的全算克制描述——克制里写逗号不会切坏。
+  </div>
+  <div id="teamList"></div>
+  <div class="sec-title">📤 批量导入</div>
+  <div class="tip">
+    一行一支队伍：<b>队名 兵种 武将 克制描述</b><br>
+    例：三马队，骑骑骑，马岱马谡马腾，克制法刀 肉步 流氓 被克制 豹纹刀 狗刀 魏智<br>
+    克制写长了换行也没事，后面的行会自动并进上一条队伍。
+  </div>
+  <textarea id="importText" placeholder="三马队|骑骑骑|马岱马谡马腾|克制法刀 肉步 流氓 被克制 豹纹刀 狗刀 魏智"></textarea>
+  <button class="btn-main" onclick="importTeams()">导入这些队伍</button>
+</div>
+
+<div class="page" id="page-cfg">
+  <div class="sec-title">💾 备份 / 换手机迁移</div>
+  <div class="tip">生成备份码后复制保存（发自己微信收藏），换手机粘贴回来即可恢复。</div>
+  <button class="btn-ghost" onclick="exportData()">生成备份码</button>
+  <textarea id="backupBox" style="height:70px" placeholder="备份码会出现在这里"></textarea>
+  <button class="btn-ghost" onclick="copyBackup()">复制备份码</button>
+  <textarea id="restoreBox" style="height:70px" placeholder="把备份码粘贴到这里"></textarea>
+  <button class="btn-main" onclick="restoreData()">恢复备份</button>
+
+  <div class="sec-title">🔄 赛季管理</div>
+  <div class="tip">换赛季：记仇本清空开新赛季，队伍库原样保留，旧记仇进档案。</div>
+  <button class="btn-ghost" onclick="newSeason()">一键开新赛季（归档旧记仇）</button>
+  <div id="seasonInfo" style="font-size:12px;color:#888;margin-top:8px"></div>
+
+  <div class="sec-title">🗑 危险区</div>
+  <button class="btn-ghost" onclick="wipeAll()">清空全部数据（不可恢复）</button>
+</div>
+
+<div class="mask" id="mask" onclick="closeSheets()"></div>
+
+<div class="sheet" id="sheetRec">
+  <h3>✍️ 记仇</h3>
+  <input type="text" id="recName" placeholder="对面玩家名字（必填）">
+  <div class="lbl">点兵种（第1、2、3个武将）：</div>
+  <div class="seq-mini">
+    <button onclick="recPick('骑')">骑</button>
+    <button onclick="recPick('步')">步</button>
+    <button onclick="recPick('弓')">弓</button>
+  </div>
+  <div class="seq-view" id="recSeqView">还没选兵种</div>
+  <div class="hit-line" id="recHit"></div>
+  <select id="recTeamSel"><option value="">（手动选队伍）</option></select>
+  <input type="text" id="recNote" placeholder="备注：怎么克制的 / 教训（可空）">
+  <div class="chk"><input type="checkbox" id="recDanger"><label for="recDanger">标记为危险人物（置顶红牌）</label></div>
+  <button class="btn-main" onclick="saveRec()">保存记仇</button>
+  <button class="btn-ghost" onclick="closeSheets()">取消</button>
+</div>
+
+<div class="sheet" id="sheetTeam">
+  <h3>✏️ 编辑队伍</h3>
+  <input type="text" id="edName" placeholder="队名">
+  <input type="text" id="edSeq" placeholder="兵种顺序，如 骑骑骑" maxlength="3">
+  <input type="text" id="edGens" placeholder="武将，如 马岱马谡马腾（可空）">
+  <input type="text" id="edCounters" placeholder="⚔ 它克制：法刀 肉步 流氓（可空）">
+  <input type="text" id="edCounterBy" placeholder="🛡 被克制：豹纹刀 狗刀 魏智（可空）">
+  <input type="text" id="edDrawWin" placeholder="⚖ 优平：平局但占优的队（可空）">
+  <input type="text" id="edDrawEven" placeholder="⚖ 平局：普通平局（可空）">
+  <input type="text" id="edDrawLose" placeholder="⚖ 劣平：平局但吃亏的队（可空）">
+  <input type="text" id="edNote" placeholder="备注（可空）">
+  <button class="btn-main" onclick="saveTeamEdit()">保存</button>
+  <button class="btn-ghost" onclick="closeSheets()">取消</button>
+</div>
+
+<div id="toast"></div>
+
+<script src="sw-register.js"></script>
+<script>
+// ===== 预置队伍：counters=它克制谁，counterBy=谁克制它 =====
+var PRESET_TEAMS = [
+  { name:"三马队", seq:"骑骑骑", gens:"马岱/马谡/马腾", counters:["法刀","肉步","流氓"], counterBy:["豹纹刀","狗刀","魏智"], note:"你提供的队伍", preset:false },
+  { name:"狗刀", seq:"骑步骑", gens:"曹操/荀彧/吕蒙", counters:["肉步"], counterBy:["控制队"], note:"兵种以游戏内为准，克制待补充", preset:true },
+  { name:"蜀骑", seq:"骑骑步", gens:"马超/马云禄/关银屏", counters:["脆皮谋略队"], counterBy:["魏智","控制队"], note:"兵种待校对", preset:true },
+  { name:"蜀骑变种", seq:"骑骑骑", gens:"马岱/关羽/马云禄", counters:[], counterBy:["控制队"], note:"兵种待校对", preset:true },
+  { name:"嘟嘟队", seq:"弓弓弓", gens:"周瑜/陆逊/吕蒙", counters:["蜀步"], counterBy:["谋略减伤队"], note:"弓兵体系，SP周瑜主将", preset:true },
+  { name:"菜刀队", seq:"骑骑骑", gens:"曹纯/马超/张辽", counters:["脆皮法师队"], counterBy:["缴械队","怯战队"], note:"兵种待校对", preset:true },
+  { name:"魏智", seq:"弓弓弓", gens:"郭嘉/魏贾诩/荀彧", counters:["肉步"], counterBy:["洞察队"], note:"兵种待校对", preset:true },
+  { name:"肉步", seq:"步步步", gens:"董卓/刘备/黄月英", counters:["菜刀队"], counterBy:["高爆发骑兵","狗刀"], note:"兵种待校对，极肉", preset:true }
+];
+
+function defaultTeams() {
+  return PRESET_TEAMS.map(function(t, i) {
+    return {
+      id: 'p' + i, name: t.name, seq: t.seq, gens: t.gens,
+      counters: t.counters.slice(), counterBy: t.counterBy.slice(),
+      drawWin: [], drawEven: [], drawLose: [],
+      note: t.note, preset: t.preset
+    };
+  });
+}
+
+var store = {
+  get: function(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e) { return def; } },
+  set: function(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+};
+
+// 把 "法刀 肉步、流氓" 拆成数组
+function toArr(s) {
+  if (!s) return [];
+  if (Array.isArray(s)) return s;
+  return String(s).split(/[\s、，,\/·|]+/).map(function(x){ return x.trim(); }).filter(Boolean);
+}
+
+// ===== 数据结构升级：counter/counter2 → counters/counterBy =====
+var DATA_VER = 'v3';
+if (store.get('lb_ver', '') !== DATA_VER) {
+  var oldTeams = store.get('lb_teams', null);
+  if (oldTeams) {
+    oldTeams = oldTeams.map(function(t) {
+      if (t && t.counters) return t;
+      return {
+        id: t.id, name: t.name, seq: t.seq, gens: t.gens || '',
+        counters: toArr(t.counter2 || ''), counterBy: toArr(t.counter || ''),
+        note: t.note || '', preset: !!t.preset
+      };
+    });
+    store.set('lb_teams', oldTeams);
+  }
+  store.set('lb_ver', DATA_VER);
+}
+
+var teams = store.get('lb_teams', null) || defaultTeams();
+// 统一补字段（老数据没有这些字段也不会报错）
+teams.forEach(function(t) {
+  t.counters = t.counters || [];
+  t.counterBy = t.counterBy || [];
+  t.drawWin = t.drawWin || [];
+  t.drawEven = t.drawEven || [];
+  t.drawLose = t.drawLose || [];
+});
+var recs = store.get('lb_records', []);
+var season = store.get('lb_season', 'S1');
+var archive = store.get('lb_archive', []);
+
+function saveAll() {
+  store.set('lb_teams', teams);
+  store.set('lb_records', recs);
+  store.set('lb_season', season);
+  store.set('lb_archive', archive);
+}
+
+function uid() { return Date.now() + '' + Math.floor(Math.random() * 1000); }
+function toast(msg, ms) {
+  var t = document.getElementById('toast');
+  t.innerHTML = msg; t.style.display = 'block';
+  clearTimeout(t._tid);
+  t._tid = setTimeout(function(){ t.style.display = 'none'; }, ms || 1600);
+}
+function esc(s) { return String(s == null ? '' : s).replace(/</g, '&lt;'); }
+
+// ===== 标签页 =====
+var navBtns = document.querySelectorAll('nav button');
+for (var i = 0; i < navBtns.length; i++) {
+  (function(btn) {
+    btn.addEventListener('click', function() {
+      navBtns.forEach(function(b){ b.classList.remove('on'); });
+      btn.classList.add('on');
+      document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
+      document.getElementById('page-' + btn.dataset.page).classList.add('on');
+    });
+  })(navBtns[i]);
+}
+
+// ===== 快查 =====
+var seq = [];
+function pickT(t) {
+  if (seq.length >= 3) seq = [];
+  seq.push(t);
+  renderSlots();
+  if (seq.length === 3) renderSeqResult();
+}
+function undoT() { seq.pop(); renderSlots(); renderSeqResult(); }
+function clearT() { seq = []; renderSlots(); renderSeqResult(); }
+function renderSlots() {
+  for (var i = 0; i < 3; i++) {
+    var s = document.getElementById('slot' + i);
+    if (seq[i]) { s.textContent = seq[i]; s.classList.add('filled'); }
+    else { s.textContent = '第' + (i + 1) + '个'; s.classList.remove('filled'); }
+  }
+}
+function renderSeqResult() {
+  var box = document.getElementById('seqResults');
+  if (seq.length < 3) { box.innerHTML = '<div class="no-match">点满三个兵种自动出结果</div>'; return; }
+  var input = seq.join('');
+  var fuzzy = document.getElementById('fuzzy').checked;
+  var exact = [], near = [];
+  teams.forEach(function(t) {
+    if (t.seq === input) exact.push(t);
+    else if (fuzzy && sortSame(t.seq, input)) near.push(t);
+  });
+  var html = '';
+  if (exact.length) html += '<div class="tip">🎯 兵种顺序完全一致：</div>' + exact.map(teamCard).join('');
+  if (near.length) html += '<div class="tip">🔀 兵种相同、顺序不同（供参考）：</div>' + near.map(teamCard).join('');
+  box.innerHTML = html || '<div class="no-match">没有匹配的知名队伍<br><small>去「队伍库」把你知道的加进来，下次就查得到</small></div>';
+}
+function sortSame(a, b) {
+  if (!a || !b) return false;
+  return a.split('').sort().join('') === b.split('').sort().join('');
+}
+
+function teamCard(t) {
+  var warn = t.preset ? '<span class="warn">⚠️待校对</span>' : '';
+  var g = t.gens ? '<div class="gens">武将：' + esc(t.gens) + '</div>' : '';
+  var c = (t.counters && t.counters.length) ? '<div class="counters">⚔ 它克制：' + esc(t.counters.join(' / ')) + '</div>' : '';
+  var cb = (t.counterBy && t.counterBy.length) ? '<div class="counterby">🛡 被克制：' + esc(t.counterBy.join(' / ')) + '</div>' : '';
+  var dw = (t.drawWin && t.drawWin.length) ? '<div class="draw-w">⚖ 优平：' + esc(t.drawWin.join(' / ')) + '</div>' : '';
+  var de = (t.drawEven && t.drawEven.length) ? '<div class="draw-e">⚖ 平局：' + esc(t.drawEven.join(' / ')) + '</div>' : '';
+  var dl = (t.drawLose && t.drawLose.length) ? '<div class="draw-l">⚖ 劣平：' + esc(t.drawLose.join(' / ')) + '</div>' : '';
+  var n = t.note ? '<div class="note">📝 ' + esc(t.note) + '</div>' : '';
+  return '<div class="card"><span class="seq">' + esc(t.seq) + '</span>' +
+    '<div class="name">' + esc(t.name) + ' ' + warn + '</div>' + g + c + cb + dw + de + dl + n +
+    '<div class="btns">' +
+      '<span onclick="openTeamSheet(\'' + t.id + '\')">编辑</span>' +
+      '<span onclick="delTeam(\'' + t.id + '\')">删除</span>' +
+    '</div></div>';
+}
+
+function delTeam(id) {
+  var t = teams.filter(function(x){ return x.id === id; })[0];
+  if (!t) return;
+  if (!confirm('删除队伍「' + t.name + '」？')) return;
+  teams = teams.filter(function(x){ return x.id !== id; });
+  saveAll(); renderTeams(); renderSeqResult(); renderRecs(); toast('已删除');
+}
+
+// ===== 编辑队伍 =====
+var editingId = null;
+function openTeamSheet(id) {
+  var t = teams.filter(function(x){ return x.id === id; })[0];
+  if (!t) return;
+  editingId = id;
+  document.getElementById('edName').value = t.name || '';
+  document.getElementById('edSeq').value = t.seq || '';
+  document.getElementById('edGens').value = t.gens || '';
+  document.getElementById('edCounters').value = (t.counters || []).join(' ');
+  document.getElementById('edCounterBy').value = (t.counterBy || []).join(' ');
+  document.getElementById('edDrawWin').value = (t.drawWin || []).join(' ');
+  document.getElementById('edDrawEven').value = (t.drawEven || []).join(' ');
+  document.getElementById('edDrawLose').value = (t.drawLose || []).join(' ');
+  document.getElementById('edNote').value = t.note || '';
+  document.getElementById('mask').classList.add('on');
+  document.getElementById('sheetTeam').classList.add('on');
+}
+function saveTeamEdit() {
+  var t = teams.filter(function(x){ return x.id === editingId; })[0];
+  if (!t) return;
+  var name = document.getElementById('edName').value.trim();
+  var seqv = document.getElementById('edSeq').value.trim();
+  if (!name) { toast('队名不能空'); return; }
+  if (!/^[骑步弓]{3}$/.test(seqv)) { toast('兵种要填 3 个：骑/步/弓'); return; }
+  t.name = name;
+  t.seq = seqv;
+  t.gens = document.getElementById('edGens').value.trim();
+  t.counters = toArr(document.getElementById('edCounters').value);
+  t.counterBy = toArr(document.getElementById('edCounterBy').value);
+  t.drawWin = toArr(document.getElementById('edDrawWin').value);
+  t.drawEven = toArr(document.getElementById('edDrawEven').value);
+  t.drawLose = toArr(document.getElementById('edDrawLose').value);
+  t.note = document.getElementById('edNote').value.trim();
+  t.preset = false;
+  saveAll(); closeSheets(); renderAll(); toast('已保存');
+}
+
+// ===== 导入（符号兼容 + 克制拆分 + 多行合并） =====
+var SEPCHARS = '|｜，,、。.．；;·/';
+function splitLimit(line, limit) {
+  var parts = [], cur = '';
+  for (var i = 0; i < line.length; i++) {
+    var ch = line.charAt(i);
+    if (SEPCHARS.indexOf(ch) >= 0 && parts.length < limit) {
+      parts.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  parts.push(cur);
+  return parts.map(function(p){ return p.trim(); });
+}
+function looksLikeCounter(s) {
+  return /克制|被克|怕|打不过|打得过|优势|劣势|建议|优平|劣平|平局|打平/.test(s);
+}
+// 去掉"克制/被克制/怕"等前缀词，只留队名
+function cleanItem(s) {
+  return String(s)
+    .replace(/^(克制它|它克制|可以打|能打|克制|被克制|被克|怕)/, '')
+    .replace(/^[:：\s]+/, '')
+    .trim();
+}
+// 判断像不像"一句话建议"（而不是队名）
+function isAdvice(s) {
+  return s.length >= 6 || /建议|注意|别|记得|优先|满红|时候|速度|打法|对位|先/.test(s);
+}
+// 分类关键词（顺序敏感：长的、具体的放前面）
+var MARKERS = [
+  { k: 'counterBy', w: ['被克制', '被克', '打不过', '怕'] },
+  { k: 'counters',  w: ['克制它', '它克制', '能打', '打得过', '克制'] },
+  { k: 'drawLose',  w: ['劣势平', '劣平'] },
+  { k: 'drawWin',   w: ['优势平', '优平'] },
+  { k: 'drawEven',  w: ['均势平', '平局', '打平'] }
+];
+
+function detectMarker(tok) {
+  for (var i = 0; i < MARKERS.length; i++) {
+    var ws = MARKERS[i].w;
+    for (var j = 0; j < ws.length; j++) {
+      if (tok.indexOf(ws[j]) === 0) return { key: MARKERS[i].k, rest: tok.slice(ws[j].length) };
+    }
+  }
+  // 单字「平」只有完全独立出现才算，避免"平地"之类误判
+  if (tok === '平') return { key: 'drawEven', rest: '' };
+  return null;
+}
+
+function stripLead(tok) {
+  return String(tok).replace(/^[:：\s的]+/, '').trim();
+}
+
+// 解析一整段克制描述，按关键词顺序分段归类
+function parseFullText(txt) {
+  var res = { counters: [], counterBy: [], drawWin: [], drawEven: [], drawLose: [], tips: [] };
+  txt = (txt || '').trim();
+  if (!txt) return res;
+  var tokens = txt.split(/[\s、，,；;·\/]+/).filter(Boolean);
+  var cur = 'counters';   // 没写关键词时默认算"它克制"
+  tokens.forEach(function (tok) {
+    var m = detectMarker(tok);
+    if (m) { cur = m.key; tok = m.rest; }
+    tok = stripLead(tok);
+    if (!tok) return;
+    if (isAdvice(tok)) { res.tips.push(tok); return; }
+    res[cur].push(tok);
+  });
+  return res;
+}
+
+function importTeams() {
+  var raw = document.getElementById('importText').value;
+  if (!raw.trim()) { toast('先把内容粘进来'); return; }
+  var lines = raw.split('\n');
+  var entries = [], merged = 0, failed = 0, failLines = [];
+
+  lines.forEach(function(line, idx) {
+    line = line.trim();
+    if (!line) return;
+    var p = splitLimit(line, 3);
+    var okSeq = p.length >= 2 && /^[骑步弓]{3}$/.test(p[1]);
+    if (okSeq && p[0]) {
+      entries.push({ name: p[0], seq: p[1], gens: p[2] || '', rest: p[3] || '', extra: [] });
+    } else if (entries.length) {
+      entries[entries.length - 1].extra.push(line);
+      merged++;
+    } else {
+      failed++;
+      failLines.push('第' + (idx + 1) + '行');
+    }
+  });
+
+  if (!entries.length) {
+    toast('一条都没识别出来<br><small>格式：队名 兵种 武将 克制</small>', 2800);
+    return;
+  }
+
+  var added = 0, updated = 0;
+  entries.forEach(function(en) {
+    var gens = en.gens, rest = en.rest;
+    if (looksLikeCounter(gens)) { rest = (gens + '，' + rest).trim(); gens = ''; }
+    if (en.extra.length) rest = (rest + '，' + en.extra.join('，')).trim();
+    var pc = parseFullText(rest);
+
+    var exist = teams.filter(function(t){ return t.name === en.name; })[0];
+    if (exist) {
+      exist.seq = en.seq;
+      if (gens) exist.gens = gens;
+      if (pc.counters.length) exist.counters = pc.counters;
+      if (pc.counterBy.length) exist.counterBy = pc.counterBy;
+      if (pc.drawWin.length) exist.drawWin = pc.drawWin;
+      if (pc.drawEven.length) exist.drawEven = pc.drawEven;
+      if (pc.drawLose.length) exist.drawLose = pc.drawLose;
+      if (pc.tips.length) exist.note = (exist.note ? exist.note + '；' : '') + pc.tips.join('；');
+      exist.preset = false;
+      updated++;
+    } else {
+      teams.push({
+        id: uid(), name: en.name, seq: en.seq, gens: gens || '',
+        counters: pc.counters, counterBy: pc.counterBy,
+        drawWin: pc.drawWin, drawEven: pc.drawEven, drawLose: pc.drawLose,
+        note: pc.tips.join('；'), preset: false
+      });
+      added++;
+    }
+  });
+
+  saveAll();
+  document.getElementById('importText').value = '';
+  renderAll();
+  var msg = '成功 ' + added + ' 条';
+  if (updated) msg += '，更新 ' + updated + ' 条';
+  if (merged) msg += '，合并 ' + merged + ' 行';
+  if (failed) msg += '，失败 ' + failed + ' 条（' + failLines.slice(0, 3).join('、') + '）';
+  toast(msg, 3200);
+}
+
+// ===== 记仇本 =====
+function findTeam(name) {
+  return teams.filter(function(t){ return t.name === name; })[0] || null;
+}
+function renderRecs() {
+  var kw = document.getElementById('recSearch').value.trim();
+  var list = recs.filter(function(r){ return !kw || r.name.indexOf(kw) >= 0 || r.team.indexOf(kw) >= 0; });
+  list.sort(function(a, b){ return (b.danger - a.danger) || (b.date - a.date); });
+  var box = document.getElementById('recList');
+  if (!list.length) {
+    box.innerHTML = '<div class="no-match">' + (kw ? '没找到「' + esc(kw) + '」' : '记仇本还是空的<br><small>点右下角 ＋ 记第一个仇</small>') + '</div>';
+    return;
+  }
+  box.innerHTML = list.map(function(r) {
+    var d = new Date(r.date);
+    var ds = (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    var t = findTeam(r.team);
+    var c = (t && t.counters.length) ? '<div class="counters">⚔ 他克制：' + esc(t.counters.join(' / ')) + '</div>' : '';
+    var cb = (t && t.counterBy.length) ? '<div class="counterby">🛡 他怕：' + esc(t.counterBy.join(' / ')) + '</div>' : '';
+    var dw = (t && t.drawWin && t.drawWin.length) ? '<div class="draw-w">⚖ 他优平：' + esc(t.drawWin.join(' / ')) + '</div>' : '';
+    var dl = (t && t.drawLose && t.drawLose.length) ? '<div class="draw-l">⚖ 他劣平：' + esc(t.drawLose.join(' / ')) + '</div>' : '';
+    return '<div class="card ' + (r.danger ? 'danger-card' : '') + '">' +
+      '<span class="rec-date">' + ds + ' · ' + esc(season) + '</span>' +
+      '<div class="name">' + esc(r.name) + (r.danger ? '<span class="danger-badge">危险</span>' : '') +
+      ' · ' + esc(r.team) + '</div>' +
+      (r.seq ? '<div class="gens">兵种：' + esc(r.seq) + '</div>' : '') +
+      c + cb + dw + dl +
+      (r.note ? '<div class="note">📝 ' + esc(r.note) + '</div>' : '') +
+      '<div class="btns"><span onclick="delRec(\'' + r.id + '\')">删除</span></div></div>';
+  }).join('');
+}
+document.getElementById('recSearch').addEventListener('input', renderRecs);
+
+function delRec(id) {
+  if (!confirm('删除这条记仇？')) return;
+  recs = recs.filter(function(r){ return r.id !== id; });
+  saveAll(); renderRecs(); toast('已删除');
+}
+
+// ===== 记仇弹层 =====
+var recSeq = [];
+function openRecSheet() {
+  recSeq = [];
+  document.getElementById('recName').value = '';
+  document.getElementById('recNote').value = '';
+  document.getElementById('recDanger').checked = false;
+  document.getElementById('recSeqView').textContent = '还没选兵种';
+  document.getElementById('recHit').textContent = '';
+  fillTeamSelect('');
+  document.getElementById('mask').classList.add('on');
+  document.getElementById('sheetRec').classList.add('on');
+}
+function fillTeamSelect(sel) {
+  var el = document.getElementById('recTeamSel');
+  el.innerHTML = '<option value="">（手动选队伍）</option>' +
+    teams.map(function(t){
+      return '<option value="' + esc(t.name) + '"' + (t.name === sel ? ' selected' : '') + '>' + esc(t.name) + '（' + esc(t.seq) + '）</option>';
+    }).join('');
+}
+function recPick(t) {
+  if (recSeq.length >= 3) recSeq = [];
+  recSeq.push(t);
+  updateRecSeq();
+}
+function updateRecSeq() {
+  var s = recSeq.join('');
+  document.getElementById('recSeqView').textContent = s ? ('已选：' + s) : '还没选兵种';
+  if (recSeq.length === 3) {
+    var hits = teams.filter(function(t){ return t.seq === s; }).map(function(t){ return t.name; });
+    document.getElementById('recHit').textContent = hits.length ? ('匹配到：' + hits.join('、')) : '没有知名队伍是这个兵种，可手动选';
+    if (hits.length === 1) fillTeamSelect(hits[0]);
+  }
+}
+function saveRec() {
+  var name = document.getElementById('recName').value.trim();
+  var team = document.getElementById('recTeamSel').value;
+  if (!name) { toast('先填玩家名字'); return; }
+  if (!team) { toast('选一个队伍'); return; }
+  recs.push({
+    id: uid(), name: name, team: team, seq: recSeq.join(''),
+    note: document.getElementById('recNote').value.trim(),
+    danger: document.getElementById('recDanger').checked,
+    date: Date.now()
+  });
+  saveAll(); closeSheets(); renderRecs(); toast('记下了！');
+}
+function closeSheets() {
+  document.getElementById('mask').classList.remove('on');
+  document.getElementById('sheetRec').classList.remove('on');
+  document.getElementById('sheetTeam').classList.remove('on');
+}
+
+// ===== 队伍库 =====
+function renderTeams() {
+  document.getElementById('teamList').innerHTML = teams.map(teamCard).join('') ||
+    '<div class="no-match">队伍库空了，快导入一些</div>';
+}
+
+// ===== 设置 =====
+function exportData() {
+  document.getElementById('backupBox').value = JSON.stringify({ teams: teams, recs: recs, season: season, archive: archive, ver: DATA_VER });
+  toast('已生成，复制保存好');
+}
+function copyBackup() {
+  var b = document.getElementById('backupBox');
+  if (!b.value) { toast('先点生成'); return; }
+  b.select();
+  try { document.execCommand('copy'); toast('已复制'); } catch(e) { toast('请手动长按复制'); }
+}
+function restoreData() {
+  var raw = document.getElementById('restoreBox').value.trim();
+  if (!raw) { toast('先粘贴备份码'); return; }
+  try {
+    var d = JSON.parse(raw);
+    if (d.teams) {
+      teams = d.teams.map(function(t){
+        return { id: t.id || uid(), name: t.name, seq: t.seq, gens: t.gens || '',
+          counters: t.counters || toArr(t.counter2 || ''), counterBy: t.counterBy || toArr(t.counter || ''),
+          drawWin: t.drawWin || [], drawEven: t.drawEven || [], drawLose: t.drawLose || [],
+          note: t.note || '', preset: !!t.preset };
+      });
+    }
+    if (d.recs) recs = d.recs;
+    if (d.season) season = d.season;
+    if (d.archive) archive = d.archive;
+    saveAll(); renderAll(); toast('恢复完成！');
+  } catch(e) { toast('备份码不对，检查一下'); }
+}
+function newSeason() {
+  if (!recs.length) { toast('记仇本本来就是空的'); return; }
+  archive = archive.concat(recs.map(function(r){ return Object.assign({ season: season }, r); }));
+  recs = [];
+  var n = parseInt(String(season).replace(/\D/g, ''), 10);
+  season = 'S' + ((isNaN(n) ? 0 : n) + 1);
+  saveAll(); renderAll(); toast('已开 ' + season + '，旧记仇归档');
+}
+function wipeAll() {
+  if (!confirm('确定清空全部数据？不可恢复！')) return;
+  ['lb_teams','lb_records','lb_season','lb_archive'].forEach(function(k){ localStorage.removeItem(k); });
+  teams = defaultTeams(); recs = []; season = 'S1'; archive = [];
+  renderAll(); toast('已清空');
+}
+function renderSeasonInfo() {
+  document.getElementById('seasonInfo').textContent = '当前赛季：' + season + '，本季记仇 ' + recs.length + ' 条，历史归档 ' + archive.length + ' 条';
+}
+function renderAll() { renderSlots(); renderSeqResult(); renderRecs(); renderTeams(); renderSeasonInfo(); }
+
+renderAll();
+</script>
+</body>
+</html>
